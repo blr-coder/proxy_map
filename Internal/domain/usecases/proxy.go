@@ -1,26 +1,32 @@
 package usecases
 
 import (
+	"context"
 	"github.com/google/uuid"
 	"net/http"
 	"proxy_map/Internal/domain/models"
 	"proxy_map/Internal/infrastructure/repository"
 	"proxy_map/Internal/infrastructure/repository/map_store"
+	"proxy_map/pkg/events"
 )
 
 type ProxyUseCase struct {
-	httpClient *http.Client
-	storage    repository.IProxyRepository
+	httpClient  *http.Client
+	storage     repository.IProxyRepository
+	eventSender events.EventSender
 }
 
-func NewProxyUseCase(proxyMap *map_store.ProxyMap) *ProxyUseCase {
+func NewProxyUseCase(proxyMap *map_store.ProxyMap, sender events.EventSender) *ProxyUseCase {
 	return &ProxyUseCase{
-		httpClient: &http.Client{},
-		storage:    proxyMap,
+		httpClient:  &http.Client{},
+		storage:     proxyMap,
+		eventSender: sender,
 	}
 }
 
 func (uc *ProxyUseCase) Proxy(proxyRequest *models.ProxyRequest) error {
+
+	ctx := context.TODO()
 
 	// prepare request
 	req, err := uc.proxyRequestToHttp(proxyRequest)
@@ -34,21 +40,29 @@ func (uc *ProxyUseCase) Proxy(proxyRequest *models.ProxyRequest) error {
 		return err
 	}
 
-	// TODO: Add event webAPI
-	// prepare event
-	//event := &models.Event{}
+	// TODO: prepare event
+	//event := &events.CreateEventRequest{}
 
 	// save response
 	err = uc.storage.Save(proxyRequest, uc.httpResponseToProxy(resp))
 	if err != nil {
-		//event.Type = saveErrorType
+		// TODO: event.Type = saveErrorType
 		return err
 	}
 
-	//event.Type = saveOkType
-	/*go func(e *models.Event) {
-		uc.webAPI.event.Push(e)
-	}(event)*/
+	err = uc.eventSender.Send(ctx, &events.CreateEventRequest{
+		TypeTitle:   "FIRST",
+		CampaignID:  1,
+		InsertionID: 2,
+		UserID:      3,
+		Cost: &events.Cost{
+			Amount:   100500,
+			Currency: "EUR",
+		},
+	})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

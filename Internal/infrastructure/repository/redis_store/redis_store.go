@@ -10,6 +10,9 @@ type ProxyRedisStore struct {
 	Client *redis.Client
 }
 
+// Верхний уровень - метод
+// Слкдующий уровень - URL
+
 func NewProxyRedisStore(ctx context.Context, redisAddr string) (*ProxyRedisStore, error) {
 	// TODO: Move NewClient to app
 	client := redis.NewClient(&redis.Options{

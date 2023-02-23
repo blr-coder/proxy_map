@@ -34,7 +34,7 @@ func (s *KafkaSender) Send(ctx context.Context, request *CreateEventRequest) err
 	}
 
 	// TODO: ???????
-	partition, offset, err := s.kafkaProducer.SendMessage(msg)
+	_, _, err := s.kafkaProducer.SendMessage(msg)
 	if err != nil {
 		return err
 	}

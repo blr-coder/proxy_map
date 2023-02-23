@@ -6,7 +6,7 @@ import (
 	"proxy_map/Internal/controllers/rest"
 	"proxy_map/Internal/domain/usecases"
 	"proxy_map/Internal/infrastructure/repository/map_store"
-	"proxy_map/pkg/events"
+	"proxy_map/pkg/kafka"
 )
 
 func main() {
@@ -19,22 +19,22 @@ func runProxy() error {
 
 	storage := map_store.NewProxyMap()
 
-	// TODO: Add func for kafka like "setupSender(config *Config) error"
-	saramaConfig := sarama.NewConfig()
-	saramaConfig.Consumer.Return.Errors = true
-	// TODO: CONFIGGGG!!!
-	saramaClient, err := sarama.NewClient([]string{"localhost:9092"}, saramaConfig)
+	conn, err := kafka.Open(&kafka.Config{
+		Config: sarama.NewConfig(),
+		Details: map[string]*sarama.TopicDetail{
+			"quickstart": {
+				NumPartitions:     1,
+				ReplicationFactor: 1,
+			},
+		},
+		Addr: []string{"localhost:9092"},
+	})
 	if err != nil {
 		return err
 	}
-	producer, err := sarama.NewSyncProducerFromClient(saramaClient)
-	if err != nil {
-		return err
-	}
+	defer conn.Close()
 
-	sender := events.NewKafkaSender(producer)
-
-	proxyUC := usecases.NewProxyUseCase(storage, sender)
+	proxyUC := usecases.NewProxyUseCase(storage, conn)
 
 	proxyHandler := rest.NewProxyHandler(proxyUC)
 

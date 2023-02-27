@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"proxy_map/Internal/domain/models"
 	"proxy_map/Internal/infrastructure/repository"
-	"proxy_map/Internal/infrastructure/repository/map_store"
 	"proxy_map/pkg/events"
 	"proxy_map/pkg/kafka"
 )
@@ -18,10 +17,11 @@ type ProxyUseCase struct {
 	conn       *kafka.Conn
 }
 
-func NewProxyUseCase(proxyMap *map_store.ProxyMap, conn *kafka.Conn) *ProxyUseCase {
+// func NewProxyUseCase(proxyMap *map_store.ProxyMap, conn *kafka.Conn) *ProxyUseCase {
+func NewProxyUseCase(storage repository.IProxyRepository, conn *kafka.Conn) *ProxyUseCase {
 	return &ProxyUseCase{
 		httpClient: &http.Client{},
-		storage:    proxyMap,
+		storage:    storage,
 		conn:       conn,
 	}
 }

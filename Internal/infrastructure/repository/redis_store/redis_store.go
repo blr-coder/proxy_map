@@ -2,6 +2,9 @@ package redis_store
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/redis/go-redis/v9"
 	"proxy_map/Internal/domain/models"
 )
@@ -16,36 +19,27 @@ type ProxyRedisStore struct {
 func NewProxyRedisStore(ctx context.Context, redisAddr string) (*ProxyRedisStore, error) {
 	// TODO: Move NewClient to app
 	client := redis.NewClient(&redis.Options{
-		Addr:     "6379",
+		Addr:     redisAddr,
 		Password: "eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81",
 		DB:       0,
 	})
 	if err := client.Ping(ctx).Err(); err != nil {
 		return nil, err
 	}
+
+	fmt.Println("REDIS PING OK")
+
 	return &ProxyRedisStore{
 		Client: client,
 	}, nil
 }
 
 func (s *ProxyRedisStore) Save(k *models.ProxyRequest, v *models.ProxyResponse) error {
+	fmt.Println("REDIS Save")
+
 	ctx := context.TODO()
-	redisTestValue := struct {
-		*models.ProxyRequest
-		*models.ProxyResponse
-	}{
-		k,
-		v,
-	}
 
-	//   - HSet("myhash", map[string]interface{}{"key1": "value1", "key2": "value2"})
-	/*err := s.Client.HSet(ctx, k.URL, map[*models.ProxyRequest]*models.ProxyResponse{k: v}).Err()
-	if err != nil {
-		return err
-	}*/
-
-	//   - HSet("myhash", MyHash{"value1", "value2"})
-	return s.Client.HSet(ctx, k.URL, redisTestValue).Err()
+	return s.Client.HSet(ctx, k.URL, k, v).Err()
 }
 
 func (s *ProxyRedisStore) Get(k *models.ProxyRequest) (*models.ProxyResponse, error) {
@@ -60,15 +54,34 @@ func (s *ProxyRedisStore) All() (map[*models.ProxyRequest]*models.ProxyResponse,
 
 	// TODO: Get all keys, for range by keys, add struct to map, return map
 
-	var redisTestValue struct {
-		*models.ProxyRequest
-		*models.ProxyResponse
+	all := s.Client.HGetAll(ctx, "https://go.dev")
+	if all.Err() != nil {
+		return nil, all.Err()
 	}
-	err := s.Client.HGetAll(ctx, "https://stackoverflow.com").Scan(&redisTestValue)
+
+	rrr, err := all.Result()
 	if err != nil {
 		return nil, err
 	}
-	res[redisTestValue.ProxyRequest] = redisTestValue.ProxyResponse
+
+	var key *models.ProxyRequest
+	var value *models.ProxyResponse
+
+	for rrrKey, rrrVal := range rrr {
+		spew.Dump(rrrKey)
+		spew.Dump(rrrVal)
+
+		err = json.Unmarshal([]byte(rrrKey), &key)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal([]byte(rrrVal), &value)
+		if err != nil {
+			return nil, err
+		}
+
+		res[key] = value
+	}
 
 	return res, nil
 }

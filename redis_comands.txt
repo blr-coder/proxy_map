@@ -1,10 +1,12 @@
 docker exec -it proxy_map-redis-1 redis-cli
 
-AUTH:
+    AUTH:
 AUTH eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
-PING:
+    PING:
 ping
-SET VALUE:
+    SET VALUE:
 set simple_key "Simple value"
-GET VALUE:
+    GET VALUE BY KEY:
 get simple_key
+    ALL KEYS:
+keys *

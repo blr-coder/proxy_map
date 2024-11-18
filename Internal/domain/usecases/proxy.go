@@ -1,22 +1,28 @@
 package usecases
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	"net/http"
 	"proxy_map/Internal/domain/models"
 	"proxy_map/Internal/infrastructure/repository"
-	"proxy_map/Internal/infrastructure/repository/map_store"
+	"proxy_map/pkg/events"
+	"proxy_map/pkg/kafka"
 )
 
 type ProxyUseCase struct {
 	httpClient *http.Client
 	storage    repository.IProxyRepository
+	conn       *kafka.Conn
 }
 
-func NewProxyUseCase(proxyMap *map_store.ProxyMap) *ProxyUseCase {
+// func NewProxyUseCase(proxyMap *map_store.ProxyMap, conn *kafka.Conn) *ProxyUseCase {
+func NewProxyUseCase(storage repository.IProxyRepository, conn *kafka.Conn) *ProxyUseCase {
 	return &ProxyUseCase{
 		httpClient: &http.Client{},
-		storage:    proxyMap,
+		storage:    storage,
+		conn:       conn,
 	}
 }
 
@@ -34,21 +40,37 @@ func (uc *ProxyUseCase) Proxy(proxyRequest *models.ProxyRequest) error {
 		return err
 	}
 
-	// TODO: Add event webAPI
-	// prepare event
-	//event := &models.Event{}
+	// TODO: prepare event
+	//event := &events.CreateEventRequest{}
 
 	// save response
 	err = uc.storage.Save(proxyRequest, uc.httpResponseToProxy(resp))
 	if err != nil {
-		//event.Type = saveErrorType
+		// TODO: event.Type = saveErrorType
 		return err
 	}
 
-	//event.Type = saveOkType
-	/*go func(e *models.Event) {
-		uc.webAPI.event.Push(e)
-	}(event)*/
+	byteEvent, err := json.Marshal(&events.CreateEventRequest{
+		TypeTitle:   "UPDATED",
+		CampaignID:  100000,
+		InsertionID: 200000,
+		UserID:      999,
+		Cost: &events.Cost{
+			Amount:   77777,
+			Currency: "EUR",
+		},
+	})
+
+	err = uc.conn.Send(kafka.Message{
+		Topic: "quickstart",
+		Key:   "event",
+		Bytes: byteEvent,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("OK")
 
 	return nil
 }
